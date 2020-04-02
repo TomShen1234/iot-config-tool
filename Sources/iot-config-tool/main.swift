@@ -57,6 +57,15 @@ struct Configure: ParsableCommand {
                 let split = line.split(separator: " ")
                 try delete(device: String(split[1]), filePath)
             }
+                
+            else if line == "list" {
+                try listAll(filePath)
+            }
+                
+            else if line.starts(with: "list") {
+                let split = line.split(separator: " ")
+                try list(String(split[1]), filePath)
+            }
             
             else if line == "help" {
                 printHelp()
@@ -96,10 +105,7 @@ struct Configure: ParsableCommand {
     }
     
     func add(device paramName: String, _ location: String) throws {
-        // Read file
-        let url = URL(fileURLWithPath: location)
-        let fileData = try Data(contentsOf: url)
-        var jsonData = try JSONSerialization.jsonObject(with: fileData, options: .allowFragments) as? [[String:Any]]
+        var jsonData = try openAndDecodeFile(location)
         
         guard jsonData != nil else {
             print("Error: Cannot read config file.")
@@ -205,17 +211,15 @@ struct Configure: ParsableCommand {
         
         // Add the device
         jsonData!.append(deviceDict)
-        let newJSONData = try JSONSerialization.data(withJSONObject: jsonData!, options: [])
-        try newJSONData.write(to: url)
+        
+        try write(jsonData!, to: location)
         
         print("Device created successfully!")
     }
     
     func delete(device paramName: String, _ location: String) throws {
         // Read the file first
-        let url = URL(fileURLWithPath: location)
-        let fileData = try Data(contentsOf: url)
-        var jsonData = try JSONSerialization.jsonObject(with: fileData, options: .allowFragments) as? [[String:Any]]
+        var jsonData = try openAndDecodeFile(location)
         
         guard jsonData != nil else {
             print("Error: Cannot read config file.")
@@ -250,21 +254,76 @@ struct Configure: ParsableCommand {
         print("Deleting \(paramName)...")
         
         jsonData!.remove(at: index!)
-        let newJSONData = try JSONSerialization.data(withJSONObject: jsonData!, options: [])
-        try newJSONData.write(to: url)
+        
+        try write(jsonData!, to: location)
         
         print("Done!")
+    }
+    
+    func listAll(_ location: String) throws {
+        let jsonData = try openAndDecodeFile(location)
+        
+        guard jsonData != nil else {
+            print("Error: Cannot read config file.")
+            return
+        }
+        
+        print("\(jsonData!.count) devices total:")
+        for device in jsonData! {
+            print("- \(device["displayName"]!) (\(device["parameterName"]!))")
+        }
+    }
+    
+    func list(_ device: String, _ location: String) throws {
+        let jsonData = try openAndDecodeFile(location)
+        
+        guard jsonData != nil else {
+            print("Error: Cannot read config file.")
+            return
+        }
+        
+        let index = jsonData!.firstIndex { obj -> Bool in
+            return obj["parameterName"] as! String == device
+        }
+        
+        if index == nil {
+            print("This device does not exist!")
+            return
+        }
+        
+        let deviceInfo = jsonData![index!]
+        
+        print("Info for: \(device)")
+        for (key, value) in deviceInfo {
+            print(key, "-", value)
+        }
     }
     
     func printHelp() {
         // TODO: Help doc
         print("Helpdoc for iot-config")
         print("This is an interactive tool is intended to help you on writing the config.json file for the platform.")
-        print("There are 3 commands: ")
+        print("There are 5 commands: ")
         print("create - create an empty config.json file.")
         print("add <name> - add a device with the specified name, you will need to answer some questions and add any additional parameter needed for the device.")
         print("delete <name> - delete the device with the specified name.")
-        print("help - show this helpdoc")
+        print("list - list all devices.")
+        print("list <name> - show all properties for device with the specified name.")
+        print("help - show this helpdoc.")
+    }
+    
+    func openAndDecodeFile(_ location: String) throws -> [[String:Any]]? {
+        // Read file
+        let url = URL(fileURLWithPath: location)
+        let fileData = try Data(contentsOf: url)
+        let jsonData = try JSONSerialization.jsonObject(with: fileData, options: .allowFragments) as? [[String:Any]]
+        return jsonData
+    }
+    
+    func write(_ data: [[String:Any]], to path: String) throws {
+        let url = URL(fileURLWithPath: path)
+        let newJSONData = try JSONSerialization.data(withJSONObject: data, options: [])
+        try newJSONData.write(to: url)
     }
 }
 
