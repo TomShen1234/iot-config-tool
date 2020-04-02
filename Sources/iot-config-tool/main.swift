@@ -6,8 +6,7 @@ import ArgumentParser
 struct Configure: ParsableCommand {
     public static let configuration = CommandConfiguration(abstract: "Helper for writing config.json file for IoT Platform.")
     
-    // TODO: Switch to real one (/var/www/html/config.json)
-    private let defaultPath = "/Users/tomshen/Desktop/config.json"
+    private let defaultPath = "/var/www/html/config.json"
     
     @Argument(default: nil, help: "Point this to the path of the file")
     private var filePath: String?
